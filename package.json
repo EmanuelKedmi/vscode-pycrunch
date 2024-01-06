@@ -12,22 +12,67 @@
 	"activationEvents": [],
 	"main": "./out/extension.js",
 	"contributes": {
+		"terminal": {
+			"profiles": [{
+				"id": "pycrunch",
+				"title": "PyCrunch"
+			}]
+		},
 		"commands": [
 			{
 				"command": "pycrunch.start",
-				"title": "Start PyCrunch Server"
+				"title": "PyCrunch: Start Server"
 			},
 			{
 				"command": "pycrunch.stop",
-				"title": "Stop PyCrunch Server"
+				"title": "PyCrunch: Stop Server"
 			},
 			{
 				"command": "pycrunch.run",
-				"title": "Run all tests"
+				"title": "PyCrunch: Run Tests"
 			},
 			{
 				"command": "pycrunch.autoRun",
-				"title": "Run tests automatically on file save"
+				"title": "PyCrunch: Auto Run"
+			},
+			{
+				"command": "pycrunch.viewCoveringTests",
+				"title": "PyCrunch: View Covering Tests",
+				"category": "PyCrunch",
+				"enablement": "false"
+			}
+		],
+		"menus": {
+			"editor/lineNumber/context": [
+				{
+					"group": "navigation",
+					"when": "editorLineNumber in pycrunch.coverage.coverageLines[resourcePath]",
+					"submenu": "pycrunch/coverage"
+				}
+			],
+			"pycrunch/coverage": [
+				{
+					"command": "pycrunch.viewCoveringTests",
+					"when": "editorLineNumber in pycrunch.coverage.coverageLines[resourcePath]"
+				}
+			]
+		},
+		"submenus": [
+			{
+				"id": "pycrunch/coverage",
+				"label": "PyCrunch"
+			}
+		],
+		"configuration": [
+			{
+				"title": "PyCrunch",
+				"properties": {
+					"pycrunch.port": {
+						"type": "number",
+						"default": 11234,
+						"description": "Port to run PyCrunch server on. 0 means random port."
+					}
+				}
 			}
 		]
 	},

@@ -1,34 +1,59 @@
 import { PythonExtension } from "@vscode/python-extension";
 import assert from "assert";
-import { Disposable, EventEmitter, Uri } from "vscode";
+import * as vscode from "vscode";
 
 export interface IInterpreterDetails {
 	path?: string[];
-	resource?: Uri;
+	resource?: vscode.Uri;
 }
 
-export class Python {
-	private extension?: PythonExtension;
+export class Python implements vscode.Disposable {
+	private _extension?: PythonExtension;
 
-	private _onPythonInterpreterChangedEmitter = new EventEmitter<IInterpreterDetails>();
+	private _interpreterDetails?: IInterpreterDetails;
+	private _onPythonInterpreterChangedEmitter = new vscode.EventEmitter<IInterpreterDetails>();
 	public readonly onPythonInterpreterChanged = this._onPythonInterpreterChangedEmitter.event;
+	public get interpreter(): string | undefined {
+		return this._interpreterDetails?.path?.[0];
+	}
 
-	public async init(disposables: Disposable[]): Promise<Python> {
-		this.extension = await PythonExtension.api();
-		assert(this.extension, "Python extension could not be initialized");
-		disposables.push(
-			this.extension.environments.onDidChangeActiveEnvironmentPath((e) => {
-				this._onPythonInterpreterChangedEmitter.fire({ path: [e.path], resource: e.resource?.uri });
+	private readonly _disposables: vscode.Disposable[] = [];
+
+	public constructor(
+		private readonly outputChannel: vscode.OutputChannel,
+		private readonly config: vscode.WorkspaceConfiguration,
+	) {}
+
+	public dispose() {
+		for (const disposable of this._disposables) {
+			disposable.dispose();
+		}
+	}
+
+	public async init(): Promise<Python> {
+		this.outputChannel.appendLine("PyCrunch - Initializing python extension...");
+		this._extension = await PythonExtension.api();
+		if (!this._extension) {
+			vscode.window.showErrorMessage("PyCrunch - Could not initialize python extension")
+			this.outputChannel.appendLine("PyCrunch - Could not initialize python extension");
+			throw new Error("Could not initialize python extension");
+		}
+		this._disposables.push(
+			this._extension.environments.onDidChangeActiveEnvironmentPath((e) => {
+				this.outputChannel.appendLine(`PyCrunch - Python interpreter changed: ${e.path}`);
+				this._interpreterDetails = { path: [e.path], resource: e.resource?.uri };
+				this._onPythonInterpreterChangedEmitter.fire(this._interpreterDetails);
 			})
 		);
-		this._onPythonInterpreterChangedEmitter.fire(await this.getInterpreterDetails());
+		this._interpreterDetails = await this.getInterpreterDetails();
+		this.outputChannel.appendLine(`PyCrunch - Python interpreter found: ${this._interpreterDetails.path}`);
+		this._onPythonInterpreterChangedEmitter.fire(this._interpreterDetails);
 		return this;
 	}
 
-	private async getInterpreterDetails(resource?: Uri): Promise<IInterpreterDetails> {
-		assert(this.extension, "Python extension not initialized");
-		const activeInterpreter = await this.extension.environments.resolveEnvironment(
-			this.extension.environments.getActiveEnvironmentPath(resource)
+	private async getInterpreterDetails(resource?: vscode.Uri): Promise<IInterpreterDetails> {
+		const activeInterpreter = await this._extension!.environments.resolveEnvironment(
+			this._extension!.environments.getActiveEnvironmentPath(resource)
 		);
 
 		if (activeInterpreter?.executable.uri) {

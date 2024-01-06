@@ -1,37 +1,47 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from "vscode";
-import { Python } from "./python";
+import { Python } from "./python.js";
+import { createDecorations } from "./decorations.js";
+import { Coverage } from "./coverage.js";
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export async function activate(context: vscode.ExtensionContext) {
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "pycrunch" is now active!');
+	const outputChannel = vscode.window.createOutputChannel("PyCrunch");
+	outputChannel.show(true);
+	outputChannel.appendLine("PyCrunch - Initializing...");
+
+	const { Engine } = await import("./engine.js");
 
 	const config = vscode.workspace.getConfiguration("pycrunch");
-	const python = await new Python().init(context.subscriptions);
+	const python = await new Python(outputChannel, config).init();
+	const engine = new Engine(python, outputChannel, config);
+	const coverage = new Coverage(engine, outputChannel, config);
 
-	// const outputChannel = vscode.window.createOutputChannel("PyCrunch");
-	// TODO: do something with this output channel
+	const decorations = createDecorations();
 
 	context.subscriptions.push(
-		python.onPythonInterpreterChanged(async (interpreter) => {
-			Server.start(interpreter.path);
-		})
+		python,
+		engine,
+		coverage,
+		outputChannel,
+		...Object.values(decorations),
+		
 	);
 
 	const startCommand = vscode.commands.registerCommand("pycrunch.start", () => {
-		vscode.window.showInformationMessage("PyCrunch - Starting server...");
+		return engine.start()
 	});
 
-	const stopCommand = vscode.commands.registerCommand("pycrunch.stop", () => {
-		vscode.window.showInformationMessage("PyCrunch - Stopping server...");
+	const stopCommand = vscode.commands.registerCommand("pycrunch.stop", async () => {
+		await engine.stop();
 	});
 
-	const runCommand = vscode.commands.registerCommand("pycrunch.run", () => {
-		vscode.window.showInformationMessage("PyCrunch - Running tests...");
+	const runCommand = vscode.commands.registerCommand("pycrunch.run", async () => {
+		await engine.run();
 	});
 
 	const autoRunCommand = vscode.commands.registerCommand("pycrunch.autoRun", () => {
