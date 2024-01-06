@@ -62,50 +62,55 @@ export class Coverage implements vscode.Disposable {
             return;
         }
 
-        const editor = vscode.window.activeTextEditor;
-        if (!editor) {
+        const editors = vscode.window.visibleTextEditors;
+        if (editors.length == 0) {
             return;
         }
 
-        const decoratedLinesSet = new Set<number>();
+        for (const editor of editors) {
+            const decoratedLinesSet = new Set<number>();
 
-        // const coveredLines = Object.values(testsResults)
-        //     .filter((testResult) => testResult.status === 'success')
-        //     .flatMap((testResult) => testResult.files)
-        //     .filter((file) => arePathsEqual(file.filename, editor.document.fileName))
-        //     .flatMap((result) => result.lines_covered);
+            // const coveredLines = Object.values(testsResults)
+            //     .filter((testResult) => testResult.status === 'success')
+            //     .flatMap((testResult) => testResult.files)
+            //     .filter((file) => arePathsEqual(file.filename, editor.document.fileName))
+            //     .flatMap((result) => result.lines_covered);
 
-        // if (coveredLines.length === 0) {
-        //     return Object.values(this._decorations)
-        //         .forEach((decoration) => editor.setDecorations(decoration, []))
-        // }
+            // if (coveredLines.length === 0) {
+            //     return Object.values(this._decorations)
+            //         .forEach((decoration) => editor.setDecorations(decoration, []))
+            // }
 
-        const errorSourceLines = Object.values(testsResults)
-            .filter((testResult) => testResult.captured_exception && arePathsEqual(testResult.captured_exception.filename, editor.document.fileName))
-            .flatMap((testResult) => testResult.captured_exception.line_number);
+            const errorSourceLines = Object.values(testsResults)
+                .filter((testResult) => testResult.captured_exception && arePathsEqual(testResult.captured_exception.filename, editor.document.fileName))
+                .flatMap((testResult) => testResult.captured_exception.line_number);
 
-        errorSourceLines.forEach((line) => decoratedLinesSet.add(line));
-        decorateEditor(editor, errorSourceLines, this._decorations.errorSource);
+            errorSourceLines.forEach((line) => decoratedLinesSet.add(line));
+            const errorSourceLinesSet = new Set(errorSourceLines);
+            decorateEditor(editor, [...errorSourceLinesSet], this._decorations.errorSource);
 
-    const coveredLines = Object.values(testsResults)
-        .filter((testResult) => testResult.status === 'success')
-        .flatMap((testResult) => testResult.files)
-        .filter((file) => arePathsEqual(file.filename, editor.document.fileName))
-        .flatMap((result) => result.lines_covered)
-        .filter((line) => !decoratedLinesSet.has(line));
-    
-    coveredLines.forEach((line) => decoratedLinesSet.add(line));
-    decorateEditor(editor, coveredLines, this._decorations.covered);
+            const coveredLines = Object.values(testsResults)
+                .filter((testResult) => testResult.status === 'success')
+                .flatMap((testResult) => testResult.files)
+                .filter((file) => arePathsEqual(file.filename, editor.document.fileName))
+                .flatMap((result) => result.lines_covered)
+                .filter((line) => !decoratedLinesSet.has(line));
+            
+            coveredLines.forEach((line) => decoratedLinesSet.add(line));
+            const coveredLinesSet = new Set(coveredLines);
+            decorateEditor(editor, [...coveredLinesSet], this._decorations.covered);
 
-        const errorPathLines = Object.values(testsResults)
-            .filter((testResult) => testResult.status === 'failed')
-            .flatMap((testResult) => testResult.files)
-            .filter((file) => arePathsEqual(file.filename, editor.document.fileName))
-            .flatMap((result) => result.lines_covered)
-            .filter((line) => !decoratedLinesSet.has(line));
+            const errorPathLines = Object.values(testsResults)
+                .filter((testResult) => testResult.status === 'failed')
+                .flatMap((testResult) => testResult.files)
+                .filter((file) => arePathsEqual(file.filename, editor.document.fileName))
+                .flatMap((result) => result.lines_covered)
+                .filter((line) => !decoratedLinesSet.has(line));
 
-        errorPathLines.forEach((line) => decoratedLinesSet.add(line));
-        decorateEditor(editor, errorPathLines, this._decorations.errorPath);
+            errorPathLines.forEach((line) => decoratedLinesSet.add(line));
+            const errorPathLinesSet = new Set(errorPathLines);
+            decorateEditor(editor, [...errorPathLinesSet], this._decorations.errorPath);
+        }
     }
 
     public updateCoverage() {
