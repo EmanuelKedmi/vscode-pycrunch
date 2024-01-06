@@ -21,11 +21,12 @@ export class Coverage implements vscode.Disposable {
     ) {
         this._disposables.push(
             vscode.window.onDidChangeActiveTextEditor((editor) => {
+                this.outputChannel.appendLine(`PyCrunch - (Coverage) Active editor changed: ${editor?.document.fileName}`);
                 // Listen to editor changes to update coverage
                 if (!editor) {
                     return;
                 }
-                this.updateCoverage();
+                this.updateTestsResults();
             }),
             this.engine.onTestResults((e) => {
                 // TODO: do we need this?
