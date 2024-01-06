@@ -50,6 +50,7 @@ export class Engine implements vscode.Disposable {
 
 	// Engine State
 	private status: string = 'disconnected';
+	private connectErrorCount: number = 0;
 	private version?: string;
 	private testsDiscovered?: any[];
 	private combinedCoverage?: any[];
@@ -227,13 +228,19 @@ export class Engine implements vscode.Disposable {
 		sock.on("disconnect", () => {
 			this.outputChannel.appendLine("PyCrunch - Engine socket disconnected");
 			this.status = "disconnected";
+			this.connectErrorCount++;
 		});
 		sock.on("connect", () => {
 			this.outputChannel.appendLine("PyCrunch - Engine socket connected");
+			this.connectErrorCount = 0;
 		});
 		sock.on("connect_error", () => {
 			this.outputChannel.appendLine("PyCrunch - Engine socket connect error");
 			this.status = "disconnected";
+			this.connectErrorCount++;
+			if (this.connectErrorCount >= 3) {
+				this.start();
+			}
 		});
 		return sock;
 	}
