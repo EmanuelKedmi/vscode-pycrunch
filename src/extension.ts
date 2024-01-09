@@ -21,7 +21,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	const python = await new Python(outputChannel, config).init();
 	const engine = new Engine(python, outputChannel, config);
 	const coverage = new Coverage(engine, outputChannel, config);
-	const showCoveringTestCommand = new ShowCoveringTestsCommand(engine, coverage, outputChannel);
+	const showCoveringTestCommand = new ShowCoveringTestsCommand(coverage, outputChannel);
 
 	const decorations = createDecorations();
 

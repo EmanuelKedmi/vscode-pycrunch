@@ -64,10 +64,8 @@ export class ShowCoveringTestsCommand {
 
             await vscode.commands.executeCommand<vscode.DocumentSymbol[]>('vscode.executeDocumentSymbolProvider', document.uri).then((symbols: vscode.DocumentSymbol[]) => {
                 if (symbols) {
-                    // Flatten the DocumentSymbol[] if necessary (as DocumentSymbol.children are nested)
                     let allSymbols = this.flattenDocumentSymbols(symbols);
 
-                    // Find the target symbol
                     let targetSymbol = allSymbols.find(symbol => symbol.name === testName);
                     if (targetSymbol) {
                         // Reveal the symbol in the editor
