@@ -1,6 +1,6 @@
 import * as util from 'node:util';
 import * as vscode from 'vscode';
-import { CombineCoverage, Engine, TestsResults } from './engine';
+import { CombineCoverage, Engine, ITestResult, TestsResults } from './engine';
 import { IconDecorationDict, createDecorations, decorateEditor } from './decorations';
 import { arePathsEqual } from './utils';
 
@@ -145,4 +145,31 @@ export class Coverage implements vscode.Disposable {
         decorateEditor(editor, [...coveredLines], this._decorations.covered);
         decorateEditor(editor, [...exceptionLines], this._decorations.errorSource);
     }
+
+
+    public getCoveringTests(lineNumber: any, filename: string): string[] {
+		// Search for filename in combinedCoverage
+		// todo change to dictionary view for faster search ({filename -> fileCoveragefindTestResult})
+		let singleFileInfo = this._combinedCoverage?.find((fileCoverage) => {
+			if (fileCoverage.filename === filename) {
+				return fileCoverage;
+			}
+		});
+		if (singleFileInfo) {
+			if (lineNumber in singleFileInfo.lines_with_entrypoints) {	
+				const testFqns = singleFileInfo.lines_with_entrypoints[lineNumber];
+				return testFqns;
+			}
+		}
+
+		vscode.window.showErrorMessage(`getCoveringTests - ${filename}:${lineNumber} not found in combinedCoverage`);
+		return [];
+	}
+
+    public findTestResult(fqn: any): ITestResult | undefined {
+		if (this._testsResults && fqn in this._testsResults)
+		{
+			return this._testsResults[fqn];
+		}
+	}
 }

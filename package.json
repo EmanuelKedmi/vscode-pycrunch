@@ -38,22 +38,19 @@
 			{
 				"command": "pycrunch.viewCoveringTests",
 				"title": "PyCrunch: View Covering Tests",
-				"category": "PyCrunch",
-				"enablement": "false"
+				"category": "PyCrunch"
 			}
 		],
 		"menus": {
 			"editor/lineNumber/context": [
 				{
 					"group": "navigation",
-					"when": "editorLineNumber in pycrunch.coverage.coverageLines[resourcePath]",
 					"submenu": "pycrunch/coverage"
 				}
 			],
 			"pycrunch/coverage": [
 				{
-					"command": "pycrunch.viewCoveringTests",
-					"when": "editorLineNumber in pycrunch.coverage.coverageLines[resourcePath]"
+					"command": "pycrunch.viewCoveringTests"
 				}
 			]
 		},
