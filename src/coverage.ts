@@ -10,7 +10,7 @@ export class Coverage implements vscode.Disposable {
     private _disposables: vscode.Disposable[] = [];
 
     private _combinedCoverage?: CombineCoverage;
-    private _testsResults?: TestsResults;
+    private _testsResults: TestsResults = {};
 
     private _decorations: IconDecorationDict = createDecorations();
 
@@ -32,7 +32,7 @@ export class Coverage implements vscode.Disposable {
                 // TODO: do we need this?
                 const prettyResults = util.inspect(e, { depth: 10  }).replace(/\\n/g, '\n\t');
                 this.outputChannel.appendLine(`PyCrunch - (Coverage) Test Results:\n${prettyResults}`);
-                this._testsResults = e;
+                this._testsResults = {...this._testsResults, ...e};
                 this.updateTestsResults();
             }),
             this.engine.onCombinedCoverage((e) => {
