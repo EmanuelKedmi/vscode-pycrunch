@@ -20,6 +20,10 @@ export class Coverage implements vscode.Disposable {
         private readonly config: vscode.WorkspaceConfiguration,
     ) {
         this._disposables.push(
+            vscode.workspace.onDidSaveTextDocument((document) => {
+                this.removeCoverage(document.uri.fsPath);
+                this.updateTestsResults();
+            }),
             vscode.window.onDidChangeActiveTextEditor((editor) => {
                 this.outputChannel.appendLine(`PyCrunch - (Coverage) Active editor changed: ${editor?.document.fileName}`);
                 // Listen to editor changes to update coverage
@@ -144,5 +148,11 @@ export class Coverage implements vscode.Disposable {
 
         decorateEditor(editor, [...coveredLines], this._decorations.covered);
         decorateEditor(editor, [...exceptionLines], this._decorations.errorSource);
+    }
+
+    private removeCoverage(path: string) {
+        for (const value of Object.values(this._testsResults)) {
+            value.files = value.files.filter((file) => !arePathsEqual(file.filename, path));
+        }
     }
 }
