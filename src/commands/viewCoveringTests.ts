@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { ITestResult } from '../engine';
 import { Coverage } from '../coverage';
 import { fqnToIcon } from '../iconsUtil';
+import assert from 'node:assert';
 
 export interface ICursorPosition {
     lineNumber: number;
@@ -9,15 +10,13 @@ export interface ICursorPosition {
 }
 
 export class ShowCoveringTestsCommand {
-    coverage: Coverage;
-    outputChannel: vscode.OutputChannel;
-    public constructor(coverage: Coverage, outputChannel: vscode.OutputChannel) {
-        this.coverage = coverage;
-        this.outputChannel = outputChannel;
-    }
+    public constructor(
+        private coverage: Coverage,
+        private outputChannel: vscode.OutputChannel
+    ) { }
 
     public async viewCoveringTests(event: any | undefined) {
-        let cursorPosition = this.getCursorLocationFromEventOrEditor(event);
+        const cursorPosition = this.getCursorLocationFromEventOrEditor(event);
         this.outputChannel.appendLine(`PyCrunch - (Coverage) View covering tests for ${cursorPosition.path}:${cursorPosition.lineNumber}`);
 
         const testFqns = this.coverage.getCoveringTests(cursorPosition.lineNumber, cursorPosition.path);
@@ -29,21 +28,20 @@ export class ShowCoveringTestsCommand {
         if (!selectedTest) {
             return;
         }
-        let testFqn = selectedTest.label;
-        let selectedTestResult = this.coverage.findTestResult(testFqn);
+        const testFqn = selectedTest.label;
+        const selectedTestResult = this.coverage.findTestResult(testFqn);
         if (!selectedTestResult) {
             vscode.window.showErrorMessage(`You picked: ${testFqn}; But it was not found in test results`);
             return;
         }
 
         this.jumpToTest(selectedTestResult);
-
-
     }
+
     private async jumpToTest(selectedTestResult: ITestResult) {
-        let filename = selectedTestResult?.test_metadata.filename;
+        const filename = selectedTestResult?.test_metadata.filename;
         // fqn is "test_module::test_name", so split by :: and take the last one
-        let fqn = selectedTestResult?.test_metadata.fqn;
+        const fqn = selectedTestResult?.test_metadata.fqn;
         if (fqn) {
             let className = null;
             let parts = fqn;
@@ -53,62 +51,64 @@ export class ShowCoveringTestsCommand {
                 let className = parts[0];
             }
 
-            let splitResult = parts.split(':');
-            let testName = splitResult[splitResult.length - 1];
+            const splitResult = parts.split(':');
+            const testName = splitResult[splitResult.length - 1];
 
             this.outputChannel.appendLine(`Going to ${testName} in ${filename}`);
 
-            let uri = vscode.Uri.file(filename);
-            let document = await vscode.workspace.openTextDocument(uri);
+            const uri = vscode.Uri.file(filename);
+            const document = await vscode.workspace.openTextDocument(uri);
             await vscode.window.showTextDocument(document);
 
-            await vscode.commands.executeCommand<vscode.DocumentSymbol[]>('vscode.executeDocumentSymbolProvider', document.uri).then((symbols: vscode.DocumentSymbol[]) => {
-                if (symbols) {
-                    let allSymbols = this.flattenDocumentSymbols(symbols);
+            const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>('vscode.executeDocumentSymbolProvider', document.uri)
+            if (symbols) {
+                const allSymbols = this.flattenDocumentSymbols(symbols);
 
-                    let targetSymbol = allSymbols.find(symbol => symbol.name === testName);
-                    if (targetSymbol) {
-                        // Reveal the symbol in the editor
-                        vscode.window.showTextDocument(document, {
-                            selection: new vscode.Selection(targetSymbol.range.start, targetSymbol.range.start)
-                        });
-                    } else {
-                        vscode.window.showWarningMessage(`Test '${testName}' not found in file '${filename}'`);
-                    }
+                const targetSymbol = allSymbols.find(symbol => symbol.name === testName);
+                if (targetSymbol) {
+                    // Reveal the symbol in the editor
+                    vscode.window.showTextDocument(document, {
+                        selection: new vscode.Selection(targetSymbol.range.start, targetSymbol.range.start)
+                    });
+                } else {
+                    vscode.window.showWarningMessage(`Test '${testName}' not found in file '${filename}'`);
                 }
-            });
+            }
         }
     }
 
     private flattenDocumentSymbols(symbols: vscode.DocumentSymbol[]): vscode.DocumentSymbol[] {
-        let flatSymbols: vscode.DocumentSymbol[] = [];
+        const flatSymbols: vscode.DocumentSymbol[] = [];
         symbols.forEach(symbol => {
             flatSymbols.push(symbol);
             if (symbol.children && symbol.children.length > 0) {
-                flatSymbols = flatSymbols.concat(this.flattenDocumentSymbols(symbol.children));
+                flatSymbols.push(...this.flattenDocumentSymbols(symbol.children));
             }
         });
         return flatSymbols;
     }
 
     private getCursorLocationFromEventOrEditor(event: any): ICursorPosition {
-        let lineNumber;
-        let path;
         if (event) {
             // This comes from gutter click
-            lineNumber = event.lineNumber;
-            path = event.uri.path;
-        } else {
-            // When the command is called from the command palette 
-            const editor = vscode.window.activeTextEditor;
-            if (editor) {
-                const position = editor.selection.active;
-                // position.line is zero based
-                lineNumber = position.line + 1;
-                path = editor.document.uri.path;
+            return {
+                lineNumber: event.lineNumber,
+                path: event.uri.fsPath
+            };
+        }
+
+        // When the command is called from the command palette 
+        const editor = vscode.window.activeTextEditor;
+        if (editor) {
+            const position = editor.selection.active;
+            // position.line is zero based
+            return {
+                lineNumber: position.line + 1,
+                path: editor.document.uri.fsPath,
             }
         }
-        return { path, lineNumber };
+
+        assert(false, "getCursorLocationFromEventOrEditor - no event or editor")
     }
 
     private convertTestsToQuickPickItems(tests: string[]): vscode.QuickPickItem[] {

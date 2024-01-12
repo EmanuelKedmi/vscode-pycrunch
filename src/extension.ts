@@ -55,9 +55,17 @@ export async function activate(context: vscode.ExtensionContext) {
 		vscode.window.showInformationMessage(`PyCrunch - autoRun tests ${status}`);
 	});
 
-	const viewCoveringTests = vscode.commands.registerCommand("pycrunch.viewCoveringTests" , 
-		async (_) => showCoveringTestCommand.viewCoveringTests(_)
-	);
+	const viewCoveringTests = vscode.commands.registerCommand("pycrunch.viewCoveringTests" , async (e) => {
+		try {
+			await showCoveringTestCommand.viewCoveringTests(e);
+		} catch (err) {
+			outputChannel.appendLine(`PyCrunch - (Coverage) Error: ${err}`);
+			const choice = await vscode.window.showErrorMessage(`PyCrunch - View Covering Tests failed`, `Show Output`);
+			if (choice === "Show Output") {
+				outputChannel.show(true);
+			}
+		}
+	});
 
 	context.subscriptions.push(startCommand, stopCommand, runCommand, autoRunCommand, viewCoveringTests);
 }

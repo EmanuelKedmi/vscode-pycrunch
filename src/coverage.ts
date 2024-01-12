@@ -150,8 +150,8 @@ export class Coverage implements vscode.Disposable {
     public getCoveringTests(lineNumber: any, filename: string): string[] {
 		// Search for filename in combinedCoverage
 		// todo change to dictionary view for faster search ({filename -> fileCoveragefindTestResult})
-		let singleFileInfo = this._combinedCoverage?.find((fileCoverage) => {
-			if (fileCoverage.filename === filename) {
+		const singleFileInfo = this._combinedCoverage?.find((fileCoverage) => {
+			if ( arePathsEqual(fileCoverage.filename, filename)) {
 				return fileCoverage;
 			}
 		});
@@ -166,10 +166,7 @@ export class Coverage implements vscode.Disposable {
 		return [];
 	}
 
-    public findTestResult(fqn: any): ITestResult | undefined {
-		if (this._testsResults && fqn in this._testsResults)
-		{
-			return this._testsResults[fqn];
-		}
+    public findTestResult(fqn: string): ITestResult | undefined {
+        return this._testsResults?.[fqn];
 	}
 }
