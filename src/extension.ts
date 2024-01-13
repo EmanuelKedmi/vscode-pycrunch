@@ -2,7 +2,7 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from "vscode";
 import { Python } from "./python.js";
-import { createDecorations } from "./decorations.js";
+import { createGutterDecorations } from "./decorations.js";
 import { Coverage } from "./coverage.js";
 import { ShowCoveringTestsCommand } from "./commands/viewCoveringTests.js";
 
@@ -23,7 +23,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	const coverage = new Coverage(engine, outputChannel, config);
 	const showCoveringTestCommand = new ShowCoveringTestsCommand(coverage, outputChannel);
 
-	const decorations = createDecorations();
+	const decorations = createGutterDecorations();
 
 	context.subscriptions.push(
 		python,

@@ -1,7 +1,7 @@
 import * as util from "node:util";
 import * as vscode from "vscode";
 import { CombineCoverage, Engine, ITestResult, TestsResults } from "./engine";
-import { IconDecorationDict, createDecorations, decorateEditor } from "./decorations";
+import { IconDecorationDict, createGutterDecorations, decorateGutter } from "./decorations";
 import { arePathsEqual } from "./utils";
 
 export class Coverage implements vscode.Disposable {
@@ -10,7 +10,9 @@ export class Coverage implements vscode.Disposable {
 	private _combinedCoverage?: CombineCoverage;
 	private _testsResults: TestsResults = {};
 
-	private _decorations: IconDecorationDict = createDecorations();
+	private _decorations: IconDecorationDict = createGutterDecorations();
+
+	private _errorPreviewDecoration = vscode.window.createTextEditorDecorationType({});
 
 	public constructor(
 		private readonly engine: Engine,
@@ -18,6 +20,7 @@ export class Coverage implements vscode.Disposable {
 		private readonly config: vscode.WorkspaceConfiguration
 	) {
 		this._disposables.push(
+			this._errorPreviewDecoration,
 			vscode.workspace.onDidSaveTextDocument((document) => {
 				this.removeCoverage(document.uri.fsPath);
 				this.updateTestsResults();
@@ -74,28 +77,16 @@ export class Coverage implements vscode.Disposable {
 		for (const editor of editors) {
 			const decoratedLinesSet = new Set<number>();
 
-			// const coveredLines = Object.values(testsResults)
-			//     .filter((testResult) => testResult.status === 'success')
-			//     .flatMap((testResult) => testResult.files)
-			//     .filter((file) => arePathsEqual(file.filename, editor.document.fileName))
-			//     .flatMap((result) => result.lines_covered);
-
-			// if (coveredLines.length === 0) {
-			//     return Object.values(this._decorations)
-			//         .forEach((decoration) => editor.setDecorations(decoration, []))
-			// }
-
-			const errorSourceLines = Object.values(testsResults)
-				.filter(
-					(testResult) =>
-						testResult.captured_exception &&
-						arePathsEqual(testResult.captured_exception.filename, editor.document.fileName)
-				)
-				.flatMap((testResult) => testResult.captured_exception.line_number);
+			const errorSources = Object.values(testsResults).filter(
+				(testResult) =>
+					testResult.captured_exception &&
+					arePathsEqual(testResult.captured_exception.filename, editor.document.fileName)
+			);
+			const errorSourceLines = errorSources.flatMap((testResult) => testResult.captured_exception.line_number);
 
 			errorSourceLines.forEach((line) => decoratedLinesSet.add(line));
 			const errorSourceLinesSet = new Set(errorSourceLines);
-			decorateEditor(editor, [...errorSourceLinesSet], this._decorations.errorSource);
+			decorateGutter(editor, [...errorSourceLinesSet], this._decorations.errorSource);
 
 			const coveredLines = Object.values(testsResults)
 				.filter((testResult) => testResult.status === "success")
@@ -106,7 +97,7 @@ export class Coverage implements vscode.Disposable {
 
 			coveredLines.forEach((line) => decoratedLinesSet.add(line));
 			const coveredLinesSet = new Set(coveredLines);
-			decorateEditor(editor, [...coveredLinesSet], this._decorations.covered);
+			decorateGutter(editor, [...coveredLinesSet], this._decorations.covered);
 
 			const errorPathLines = Object.values(testsResults)
 				.filter((testResult) => testResult.status === "failed")
@@ -117,7 +108,13 @@ export class Coverage implements vscode.Disposable {
 
 			errorPathLines.forEach((line) => decoratedLinesSet.add(line));
 			const errorPathLinesSet = new Set(errorPathLines);
-			decorateEditor(editor, [...errorPathLinesSet], this._decorations.errorPath);
+			decorateGutter(editor, [...errorPathLinesSet], this._decorations.errorPath);
+
+			// error source explanations
+			const errorPreviewDecorationOptions = errorSources
+				.map((errorSource) => this.errorPreviewDecorationOptions(errorSource, editor))
+				.filter((decoration): decoration is vscode.DecorationOptions => decoration !== undefined);
+			editor.setDecorations(this._errorPreviewDecoration, errorPreviewDecorationOptions);
 		}
 	}
 
@@ -134,8 +131,8 @@ export class Coverage implements vscode.Disposable {
 
 		const currentFileCoverage = coverage.filter((file) => arePathsEqual(file.filename, editor.document.fileName));
 		if (currentFileCoverage.length === 0) {
-			decorateEditor(editor, [], this._decorations.covered);
-			decorateEditor(editor, [], this._decorations.errorSource);
+			decorateGutter(editor, [], this._decorations.covered);
+			decorateGutter(editor, [], this._decorations.errorSource);
 		}
 
 		const exceptionLines = new Set(currentFileCoverage.flatMap((file) => file.exceptions).map((line) => line - 1));
@@ -146,8 +143,8 @@ export class Coverage implements vscode.Disposable {
 				.filter((line) => !exceptionLines.has(line))
 		);
 
-		decorateEditor(editor, [...coveredLines], this._decorations.covered);
-		decorateEditor(editor, [...exceptionLines], this._decorations.errorSource);
+		decorateGutter(editor, [...coveredLines], this._decorations.covered);
+		decorateGutter(editor, [...exceptionLines], this._decorations.errorSource);
 	}
 
 	private removeCoverage(path: string) {
@@ -177,5 +174,55 @@ export class Coverage implements vscode.Disposable {
 
 	public findTestResult(fqn: string): ITestResult | undefined {
 		return this._testsResults?.[fqn];
+	}
+
+	private errorPreviewDecorationOptions(
+		errorSource: ITestResult,
+		editor: vscode.TextEditor
+	): vscode.DecorationOptions | undefined {
+		// error preview extractions
+		const errorSourceStrLines = errorSource.captured_output.split("\n");
+		const shortTestSummaryLine =
+			errorSourceStrLines.findIndex((line) => line.match("== short test summary info ==")) - 1;
+		if (shortTestSummaryLine < 0) {
+			this.outputChannel.appendLine(
+				`PyCrunch - (Coverage) could not extract fail preview for test ${errorSource.entry_point}`
+			);
+			return;
+		}
+		const exceptionSplitMatches = errorSourceStrLines[shortTestSummaryLine].split(/^.*?:\d+: /);
+		if (exceptionSplitMatches.length < 2) {
+			this.outputChannel.appendLine(
+				`PyCrunch - (Coverage) could not extract fail preview for test ${errorSource.entry_point}`
+			);
+			return;
+		}
+
+		const errorSourcePreview = `${exceptionSplitMatches[1]}`;
+		// TODO: maybe replace line path+numbers with links to files,
+		//       test fqns with links to test, etc...
+		const detailedErrorViewStr = new vscode.MarkdownString(
+			`### Test Output  \n` +
+				"```txt\n" +
+				errorSource.captured_output +
+				"\n```\n" +
+				`### Stack Trace  \n` +
+				"```python\n" +
+				errorSource.captured_exception.full_traceback +
+				"\n```\n"
+		);
+
+		return {
+			renderOptions: {
+				after: {
+					contentText: errorSourcePreview,
+					color: "rgb(175 71 71 / 90%)",
+					margin: "0 0 0 1.5em",
+					textDecoration: "none; font-style: italic; font-size: 0.9em;",
+				},
+			},
+			range: editor.document.lineAt(errorSource.captured_exception.line_number - 1).range,
+			hoverMessage: detailedErrorViewStr,
+		};
 	}
 }
