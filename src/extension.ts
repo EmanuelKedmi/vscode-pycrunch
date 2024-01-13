@@ -2,7 +2,7 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from "vscode";
 import { Python } from "./python.js";
-import { createDecorations } from "./decorations.js";
+import { createGutterDecorations } from "./decorations.js";
 import { Coverage } from "./coverage.js";
 
 // This method is called when your extension is activated
@@ -21,7 +21,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	const engine = new Engine(python, outputChannel, config);
 	const coverage = new Coverage(engine, outputChannel, config);
 
-	const decorations = createDecorations();
+	const decorations = createGutterDecorations();
 
 	context.subscriptions.push(
 		python,

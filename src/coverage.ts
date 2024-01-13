@@ -1,7 +1,7 @@
 import * as util from 'node:util';
 import * as vscode from 'vscode';
 import { CombineCoverage, Engine, TestsResults } from './engine';
-import { IconDecorationDict, createDecorations, decorateEditor } from './decorations';
+import { IconDecorationDict, createGutterDecorations, decorateGutter } from './decorations';
 import { arePathsEqual } from './utils';
 
 
@@ -12,7 +12,8 @@ export class Coverage implements vscode.Disposable {
     private _combinedCoverage?: CombineCoverage;
     private _testsResults: TestsResults = {};
 
-    private _decorations: IconDecorationDict = createDecorations();
+    private _decorations: IconDecorationDict = createGutterDecorations();
+
 
     public constructor(
         private readonly engine: Engine,
@@ -91,7 +92,7 @@ export class Coverage implements vscode.Disposable {
 
             errorSourceLines.forEach((line) => decoratedLinesSet.add(line));
             const errorSourceLinesSet = new Set(errorSourceLines);
-            decorateEditor(editor, [...errorSourceLinesSet], this._decorations.errorSource);
+            decorateGutter(editor, [...errorSourceLinesSet], this._decorations.errorSource);
 
             const coveredLines = Object.values(testsResults)
                 .filter((testResult) => testResult.status === 'success')
@@ -102,7 +103,7 @@ export class Coverage implements vscode.Disposable {
             
             coveredLines.forEach((line) => decoratedLinesSet.add(line));
             const coveredLinesSet = new Set(coveredLines);
-            decorateEditor(editor, [...coveredLinesSet], this._decorations.covered);
+            decorateGutter(editor, [...coveredLinesSet], this._decorations.covered);
 
             const errorPathLines = Object.values(testsResults)
                 .filter((testResult) => testResult.status === 'failed')
@@ -113,7 +114,7 @@ export class Coverage implements vscode.Disposable {
 
             errorPathLines.forEach((line) => decoratedLinesSet.add(line));
             const errorPathLinesSet = new Set(errorPathLines);
-            decorateEditor(editor, [...errorPathLinesSet], this._decorations.errorPath);
+            decorateGutter(editor, [...errorPathLinesSet], this._decorations.errorPath);
         }
     }
 
@@ -130,8 +131,8 @@ export class Coverage implements vscode.Disposable {
 
         const currentFileCoverage = coverage.filter((file) => arePathsEqual(file.filename, editor.document.fileName));
         if (currentFileCoverage.length === 0) {
-            decorateEditor(editor, [], this._decorations.covered);
-            decorateEditor(editor, [], this._decorations.errorSource);
+            decorateGutter(editor, [], this._decorations.covered);
+            decorateGutter(editor, [], this._decorations.errorSource);
         }
 
         const exceptionLines = new Set(
@@ -146,8 +147,8 @@ export class Coverage implements vscode.Disposable {
                 .filter((line) => !exceptionLines.has(line))
         );
 
-        decorateEditor(editor, [...coveredLines], this._decorations.covered);
-        decorateEditor(editor, [...exceptionLines], this._decorations.errorSource);
+        decorateGutter(editor, [...coveredLines], this._decorations.covered);
+        decorateGutter(editor, [...exceptionLines], this._decorations.errorSource);
     }
 
     private removeCoverage(path: string) {
