@@ -4,6 +4,7 @@ import * as vscode from "vscode";
 import { Python } from "./python.js";
 import { createDecorations } from "./decorations.js";
 import { Coverage } from "./coverage.js";
+import { ShowCoveringTestsCommand } from "./commands/viewCoveringTests.js";
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -20,6 +21,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	const python = await new Python(outputChannel, config).init();
 	const engine = new Engine(python, outputChannel, config);
 	const coverage = new Coverage(engine, outputChannel, config);
+	const showCoveringTestCommand = new ShowCoveringTestsCommand(coverage, outputChannel);
 
 	const decorations = createDecorations();
 
@@ -53,7 +55,19 @@ export async function activate(context: vscode.ExtensionContext) {
 		vscode.window.showInformationMessage(`PyCrunch - autoRun tests ${status}`);
 	});
 
-	context.subscriptions.push(startCommand, stopCommand, runCommand, autoRunCommand);
+	const viewCoveringTests = vscode.commands.registerCommand("pycrunch.viewCoveringTests" , async (e) => {
+		try {
+			await showCoveringTestCommand.viewCoveringTests(e);
+		} catch (err) {
+			outputChannel.appendLine(`PyCrunch - (Coverage) Error: ${err}`);
+			const choice = await vscode.window.showErrorMessage(`PyCrunch - View Covering Tests failed`, `Show Output`);
+			if (choice === "Show Output") {
+				outputChannel.show(true);
+			}
+		}
+	});
+
+	context.subscriptions.push(startCommand, stopCommand, runCommand, autoRunCommand, viewCoveringTests);
 }
 
 // This method is called when your extension is deactivated
