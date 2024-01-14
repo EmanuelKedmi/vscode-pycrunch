@@ -5,39 +5,39 @@ import assert from "assert";
 import { Python } from "./python";
 
 // TODO: figure out this import issue so we can use the types (Socker, ... etc) from socket.io-client
-const { io, Socket } = require( "socket.io-client");
+const { io, Socket } = require("socket.io-client");
 
 export interface ITestResult {
-    entry_point: string;
-    time_elapsed: number;
-    test_metadata: {
-        fqn: string;
-        filename: string;
-        name: string;
-        module: string;
-        state: string;
-    };
-    files: Array<{
-        filename: string;
-        lines_covered: number[];
-    }>
-    status: string;
-    captured_exception: {
-        filename: string;
-        line_number: number;
-        full_traceback: string;
-        variables: { [key: string]: string };
-    }
-    captured_output: string;
-    variables_state: { [key: string]: any };
+	entry_point: string;
+	time_elapsed: number;
+	test_metadata: {
+		fqn: string;
+		filename: string;
+		name: string;
+		module: string;
+		state: string;
+	};
+	files: Array<{
+		filename: string;
+		lines_covered: number[];
+	}>;
+	status: string;
+	captured_exception: {
+		filename: string;
+		line_number: number;
+		full_traceback: string;
+		variables: { [key: string]: string };
+	};
+	captured_output: string;
+	variables_state: { [key: string]: any };
 }
 
 export type TestsResults = { [key: string]: ITestResult };
 
 export interface IFileCoverage {
-    filename: string;
-    exceptions: number[];
-    lines_with_entrypoints: { [key: `${number}`]: string[] };
+	filename: string;
+	exceptions: number[];
+	lines_with_entrypoints: { [key: `${number}`]: string[] };
 }
 
 export type CombineCoverage = Array<IFileCoverage>;
@@ -49,7 +49,7 @@ export class Engine implements vscode.Disposable {
 	private socket?: any;
 
 	// Engine State
-	private status: string = 'disconnected';
+	private status: string = "disconnected";
 	private connectErrorCount: number = 0;
 	private version?: string;
 	private testsDiscovered?: any[];
@@ -58,10 +58,10 @@ export class Engine implements vscode.Disposable {
 
 	private readonly testsDiscoveredEmitter = new vscode.EventEmitter<any[]>();
 	public readonly onTestsDiscovered = this.testsDiscoveredEmitter.event;
-	
+
 	private readonly combinedCoverageEmitter = new vscode.EventEmitter<any[]>();
 	public readonly onCombinedCoverage = this.combinedCoverageEmitter.event;
-	
+
 	private readonly testResultsEmitter = new vscode.EventEmitter<any>();
 	public readonly onTestResults = this.testResultsEmitter.event;
 
@@ -73,21 +73,23 @@ export class Engine implements vscode.Disposable {
 		this.testsDiscoveredEmitter,
 		this.combinedCoverageEmitter,
 		this.testResultsEmitter,
-		this.engineOutputChannel
+		this.engineOutputChannel,
 	];
 
 	public constructor(
 		private readonly python: Python,
 		private readonly outputChannel: vscode.OutputChannel,
-		private readonly config: vscode.WorkspaceConfiguration,
+		private readonly config: vscode.WorkspaceConfiguration
 	) {
-		this._disposables.push(python.onPythonInterpreterChanged(async (interpreter) => {
-			// TODO: verify server was started before we decide to restart it
-			if (interpreter?.path?.[0]) {
-				this._interpreter = interpreter.path[0];
-				this.start();
-			}
-		}));
+		this._disposables.push(
+			python.onPythonInterpreterChanged(async (interpreter) => {
+				// TODO: verify server was started before we decide to restart it
+				if (interpreter?.path?.[0]) {
+					this._interpreter = interpreter.path[0];
+					this.start();
+				}
+			})
+		);
 	}
 
 	public dispose() {
@@ -111,14 +113,16 @@ export class Engine implements vscode.Disposable {
 
 		// to check if the package is installed in python:
 		// 'pycrunch-engine' in [d.key for d in pkg_resources.find_distributions(p) for p in sys.path]
-		
+
 		await this.stop(false);
-		
+
 		try {
 			this.outputChannel.appendLine(`PyCrunch - Starting server...`);
 			const port = this.config.get<number>("port");
-			this.process = cp.spawn(path, ["-m", "pycrunch.main", `--port=${port}`], { cwd: vscode.workspace.workspaceFolders?.[0].uri.fsPath });
-			
+			this.process = cp.spawn(path, ["-m", "pycrunch.main", `--port=${port}`], {
+				cwd: vscode.workspace.workspaceFolders?.[0].uri.fsPath,
+			});
+
 			this.process.stderr?.on("data", (data) => {
 				this.engineOutputChannel.appendLine(`PyCrunch - engine stderr message: ${data}`);
 			});
@@ -136,11 +140,13 @@ export class Engine implements vscode.Disposable {
 			vscode.window.showInformationMessage("PyCrunch - Server started");
 		} catch (error) {
 			assert(error instanceof Error, "error is not an instance of Error");
-			vscode.window.showErrorMessage(`PyCrunch - Error starting server`, { detail: error.toString() }, "View Output").then((selection) => {
-				if (selection === "View Output") {
-					this.outputChannel.show();
-				}
-			});
+			vscode.window
+				.showErrorMessage(`PyCrunch - Error starting server`, { detail: error.toString() }, "View Output")
+				.then((selection) => {
+					if (selection === "View Output") {
+						this.outputChannel.show();
+					}
+				});
 			this.outputChannel.appendLine(`PyCrunch - Error starting server: ${error.message}`);
 			throw error;
 		}
@@ -165,7 +171,7 @@ export class Engine implements vscode.Disposable {
 			this.outputChannel.appendLine(`PyCrunch - Disconnecting engine socket`);
 			this.socket?.disconnect();
 			this.socket = undefined;
-			
+
 			if (this.process) {
 				this.outputChannel.appendLine(`PyCrunch - Process still alive, sending SIGTERM`);
 				if (!this.process.kill("SIGKILL")) {
@@ -194,18 +200,20 @@ export class Engine implements vscode.Disposable {
 		} catch (error) {
 			assert(error instanceof Error, "error is not an instance of Error");
 			this.outputChannel.appendLine(`PyCrunch - Error stopping server: ${error.message}`);
-			vscode.window.showErrorMessage(`PyCrunch - Error stopping server`, { detail: error.message }, "View Output").then((selection) => {
-				if (selection === "View Output") {
-					this.outputChannel.show();
-				}
-			});
+			vscode.window
+				.showErrorMessage(`PyCrunch - Error stopping server`, { detail: error.message }, "View Output")
+				.then((selection) => {
+					if (selection === "View Output") {
+						this.outputChannel.show();
+					}
+				});
 			throw error;
 		}
 	}
 
 	public async run() {
 		if (!this.isReady()) {
-			this.start()
+			this.start();
 			await sleep(3000);
 			if (!this.isReady()) {
 				vscode.window.showErrorMessage("PyCrunch - Server not ready");

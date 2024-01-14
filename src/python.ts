@@ -21,7 +21,7 @@ export class Python implements vscode.Disposable {
 
 	public constructor(
 		private readonly outputChannel: vscode.OutputChannel,
-		private readonly config: vscode.WorkspaceConfiguration,
+		private readonly config: vscode.WorkspaceConfiguration
 	) {}
 
 	public dispose() {
@@ -34,7 +34,7 @@ export class Python implements vscode.Disposable {
 		this.outputChannel.appendLine("PyCrunch - Initializing python extension...");
 		this._extension = await PythonExtension.api();
 		if (!this._extension) {
-			vscode.window.showErrorMessage("PyCrunch - Could not initialize python extension")
+			vscode.window.showErrorMessage("PyCrunch - Could not initialize python extension");
 			this.outputChannel.appendLine("PyCrunch - Could not initialize python extension");
 			throw new Error("Could not initialize python extension");
 		}
