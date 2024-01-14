@@ -25,17 +25,10 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	const decorations = createGutterDecorations();
 
-	context.subscriptions.push(
-		python,
-		engine,
-		coverage,
-		outputChannel,
-		...Object.values(decorations),
-		
-	);
+	context.subscriptions.push(python, engine, coverage, outputChannel, ...Object.values(decorations));
 
-	const startCommand = vscode.commands.registerCommand("pycrunch.start", () => {
-		return engine.start()
+	const startCommand = vscode.commands.registerCommand("pycrunch.start", async () => {
+		await engine.start();
 	});
 
 	const stopCommand = vscode.commands.registerCommand("pycrunch.stop", async () => {
@@ -46,16 +39,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		await engine.run();
 	});
 
-	const autoRunCommand = vscode.commands.registerCommand("pycrunch.autoRun", () => {
-		const autoRun = config.get<boolean>("autoRun");
-		config.update("autoRun", !autoRun, vscode.ConfigurationTarget.Workspace);
-
-		const status = !autoRun ? "enabled" : "disabled";
-
-		vscode.window.showInformationMessage(`PyCrunch - autoRun tests ${status}`);
-	});
-
-	const viewCoveringTests = vscode.commands.registerCommand("pycrunch.viewCoveringTests" , async (e) => {
+	const viewCoveringTests = vscode.commands.registerCommand("pycrunch.viewCoveringTests", async (e) => {
 		try {
 			await showCoveringTestCommand.viewCoveringTests(e);
 		} catch (err) {
@@ -67,7 +51,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
-	context.subscriptions.push(startCommand, stopCommand, runCommand, autoRunCommand, viewCoveringTests);
+	context.subscriptions.push(startCommand, stopCommand, runCommand, viewCoveringTests);
 }
 
 // This method is called when your extension is deactivated
