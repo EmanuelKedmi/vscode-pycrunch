@@ -10,7 +10,7 @@ export class Coverage implements vscode.Disposable {
     private _disposables: vscode.Disposable[] = [];
 
     private _combinedCoverage?: CombineCoverage;
-    private _testsResults?: TestsResults;
+    private _testsResults: TestsResults = {};
 
     private _decorations: IconDecorationDict = createDecorations();
 
@@ -20,6 +20,10 @@ export class Coverage implements vscode.Disposable {
         private readonly config: vscode.WorkspaceConfiguration,
     ) {
         this._disposables.push(
+            vscode.workspace.onDidSaveTextDocument((document) => {
+                this.removeCoverage(document.uri.fsPath);
+                this.updateTestsResults();
+            }),
             vscode.window.onDidChangeActiveTextEditor((editor) => {
                 this.outputChannel.appendLine(`PyCrunch - (Coverage) Active editor changed: ${editor?.document.fileName}`);
                 // Listen to editor changes to update coverage
@@ -32,7 +36,7 @@ export class Coverage implements vscode.Disposable {
                 // TODO: do we need this?
                 const prettyResults = util.inspect(e, { depth: 10  }).replace(/\\n/g, '\n\t');
                 this.outputChannel.appendLine(`PyCrunch - (Coverage) Test Results:\n${prettyResults}`);
-                this._testsResults = e;
+                this._testsResults = {...this._testsResults, ...e};
                 this.updateTestsResults();
             }),
             this.engine.onCombinedCoverage((e) => {
@@ -156,7 +160,7 @@ export class Coverage implements vscode.Disposable {
 			}
 		});
 		if (singleFileInfo) {
-			if (lineNumber in singleFileInfo.lines_with_entrypoints) {	
+			if (lineNumber in singleFileInfo.lines_with_entrypoints) {
 				const testFqns = singleFileInfo.lines_with_entrypoints[lineNumber];
 				return testFqns;
 			}
@@ -169,4 +173,10 @@ export class Coverage implements vscode.Disposable {
     public findTestResult(fqn: string): ITestResult | undefined {
         return this._testsResults?.[fqn];
 	}
+
+    private removeCoverage(path: string) {
+        for (const value of Object.values(this._testsResults)) {
+            value.files = value.files.filter((file) => !arePathsEqual(file.filename, path));
+        }
+    }
 }
