@@ -13,10 +13,12 @@
 	"main": "./out/extension.js",
 	"contributes": {
 		"terminal": {
-			"profiles": [{
+			"profiles": [
+				{
 				"id": "pycrunch",
 				"title": "PyCrunch"
-			}]
+				}
+			]
 		},
 		"commands": [
 			{
@@ -30,10 +32,6 @@
 			{
 				"command": "pycrunch.run",
 				"title": "PyCrunch: Run Tests"
-			},
-			{
-				"command": "pycrunch.autoRun",
-				"title": "PyCrunch: Auto Run"
 			},
 			{
 				"command": "pycrunch.viewCoveringTests",
